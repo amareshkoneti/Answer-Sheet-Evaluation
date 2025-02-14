@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparison Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+
+</head>
+<body>
+    <h1>Comparison Results</h1>
+    <table border="1">
+        <tr>
+            <th>Page Number</th>
+            <th>Student Answer</th>
+            <th>Teacher Answer</th>
+            <th>Similarity (%)</th>
+            <th>Context Match (%)</th>
+        </tr>
+        {% for page, data in comparisons.items() %}
+        <tr>
+            <td>{{ page }}</td>
+            <td>{{ data.student_text }}</td>
+            <td>{{ data.teacher_text }}</td>
+            <td>{{ data.similarity_score }}</td>
+            <td>{{ data.contextual_score }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br><br>
+    <a href="/">Back to Upload Page</a>
+</body>
+</html>
