@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import fitz  # PyMuPDF
 from PIL import Image
 import os
@@ -15,6 +16,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
 app = Flask(__name__)
+CORS(app)
 
 # Configure Gemini API
 genai.configure(api_key="AIzaSyAawh0tRqyCOsyz7x9GxVbV_tkUzBsZ59s")
@@ -158,16 +160,57 @@ def upload_student_pdf():
     comparisons = {}
     for page, (student_text, teacher_text) in enumerate(zip(extracted_answers, teacher_answers), start=1):
         similarity_score, contextual_score = bert_similarity(student_text, teacher_text)
+        total_score = similarity_score*0.5 + contextual_score*0.5
         comparisons[page] = {
             "student_text": student_text,
             "teacher_text": teacher_text,
             "similarity_score": similarity_score,
             "contextual_score": contextual_score,
+            "total_score": round(total_score,0)
         }
 
 
     # Return the comparisons for display
     return render_template("result.html", comparisons=comparisons)
+
+@app.route('/upload/student_api', methods=['POST'])
+def upload_student_pdf_api():
+    """
+    Endpoint to upload a student's PDF, extract answers, and compare with teacher's answers.
+    """
+    if 'pdf' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    pdf_file = request.files['pdf']
+    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_file.filename)
+    pdf_file.save(pdf_path)
+
+    # Extract text from the uploaded student PDF
+    extracted_answers = extract_text_from_pdf(pdf_path)
+
+    # Compare with teacher's answers
+    comparisons = {}
+    for page, (student_text, teacher_text) in enumerate(zip(extracted_answers, teacher_answers), start=1):
+        similarity_score, contextual_score = bert_similarity(student_text, teacher_text)
+        total_score = similarity_score*0.5 + contextual_score*0.5
+        total_score = total_score/10
+        comparisons[page] = {
+            "student_text": student_text,
+            "teacher_text": teacher_text,
+            "similarity_score": similarity_score,
+            "contextual_score": contextual_score,
+            "total_score": round(total_score,0)
+        }
+
+
+    # Return the comparisons for display
+    return jsonify({"comparisons": comparisons})
+
+@app.route("/reset/teacher", methods=["GET"])
+def reset_teacher():
+    global teacher_answers
+    teacher_answers = None
+    return jsonify({"message": "Teacher answers reset successfully"})
 
 
 if __name__ == '__main__':

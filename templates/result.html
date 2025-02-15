@@ -16,6 +16,8 @@
             <th>Teacher Answer</th>
             <th>Similarity (%)</th>
             <th>Context Match (%)</th>
+            <th>Marks</th>
+
         </tr>
         {% for page, data in comparisons.items() %}
         <tr>
@@ -24,6 +26,7 @@
             <td>{{ data.teacher_text }}</td>
             <td>{{ data.similarity_score }}</td>
             <td>{{ data.contextual_score }}</td>
+            <td>{{ data.total_score }}</td>
         </tr>
         {% endfor %}
     </table>
