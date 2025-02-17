@@ -178,6 +178,9 @@ def upload_student_pdf_api():
     """
     Endpoint to upload a student's PDF, extract answers, and compare with teacher's answers.
     """
+    student_name = request.form.get('studentName')
+    roll_number = request.form.get('rollNumber')
+
     if 'pdf' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -204,7 +207,11 @@ def upload_student_pdf_api():
 
 
     # Return the comparisons for display
-    return jsonify({"comparisons": comparisons})
+    return jsonify({
+        "student_name": student_name,
+        "roll_number": roll_number,
+        "comparisons": comparisons
+    })
 
 @app.route("/reset/teacher", methods=["GET"])
 def reset_teacher():
