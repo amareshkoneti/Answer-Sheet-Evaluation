@@ -19,7 +19,6 @@ app = Flask(__name__)
 CORS(app)
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyAawh0tRqyCOsyz7x9GxVbV_tkUzBsZ59s")
 
 # Download necessary NLTK resources
 nltk.download('punkt')
@@ -33,6 +32,7 @@ negation_words = {"not", "never", "no", "none", "cannot", "n't"}  # Add more if 
 
 # SBERT Model for Similarity
 sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
+genai.configure(api_key="AIzaSyAawh0tRqyCOsyz7x9GxVbV_tkUzBsZ59s")
 
 # Cross-Encoder for Contextual Understanding
 cross_encoder_model = AutoModelForSequenceClassification.from_pretrained("cross-encoder/stsb-roberta-large")
@@ -89,7 +89,7 @@ def extract_text_from_image(image):
     model = genai.GenerativeModel("gemini-1.5-flash")
 
     # Send the image to Gemini Vision API
-    prompt = "Extract and return the handwritten text from this image:"
+    prompt = "Extract and return the handwritten text from this image:and does not include any extra text in response"
     response = model.generate_content([prompt, image])
 
     # Return the extracted text
@@ -178,6 +178,9 @@ def upload_student_pdf_api():
     """
     Endpoint to upload a student's PDF, extract answers, and compare with teacher's answers.
     """
+    student_name = request.form.get('studentName')
+    roll_number = request.form.get('rollNumber')
+
     if 'pdf' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -204,7 +207,11 @@ def upload_student_pdf_api():
 
 
     # Return the comparisons for display
-    return jsonify({"comparisons": comparisons})
+    return jsonify({
+        "student_name": student_name,
+        "roll_number": roll_number,
+        "comparisons": comparisons
+    })
 
 @app.route("/reset/teacher", methods=["GET"])
 def reset_teacher():
