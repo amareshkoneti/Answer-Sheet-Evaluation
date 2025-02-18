@@ -11,6 +11,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sentence_transformers import SentenceTransformer, util
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from pymongo import MongoClient
 
 
 
@@ -18,7 +19,8 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 app = Flask(__name__)
 CORS(app)
 
-# Configure Gemini API
+# MongoDB Configuration
+client = MongoClient("mongodb+srv://amaresh:1234@artgallery.vntex.mongodb.net/?retryWrites=true&w=majority&appName=artgallery")
 
 # Download necessary NLTK resources
 nltk.download('punkt')
@@ -123,23 +125,81 @@ def index():
     """
     return render_template("index.html")  # Create an HTML form for uploading files
 
+from flask import request, jsonify
+import os
+
+@app.route('/mongodb/databases', methods=['GET'])
+def get_databases():
+    try:
+        databases = client.list_database_names()
+        return jsonify({"databases": databases}), 200
+    except Exception as e:
+        print(f"Error fetching databases: {e}")
+        return jsonify({"error": "Failed to fetch databases"}), 500
+
+
+@app.route('/mongodb/collection-data', methods=['POST'])
+def get_collection_data():
+    try:
+        # Extract database name from the request body
+        data = request.json
+        database_name = data.get("database")
+
+        # Validate the input
+        if not database_name:
+            return jsonify({"error": "Database name is required"}), 400
+
+        # Access the database and the 'reports' collection
+        db = client[database_name]
+        collection_name = "reports"
+        collection = db[collection_name]
+
+        # Fetch all documents from the collection
+        collection_data = list(collection.find({}, {"_id": 0}))  # Exclude '_id' if not required in output
+
+        return jsonify({"collection_name": collection_name, "data": collection_data}), 200
+    except Exception as e:
+        # Print error details and send a failure response
+        print(f"Error fetching collection data: {e}")
+        return jsonify({"error": "Failed to fetch collection data"}), 500
+
+
+
 @app.route('/upload/teacher', methods=['POST'])
 def upload_teacher_pdf():
     """
     Endpoint to upload teacher's PDF and store answers page-wise.
     """
+    # Check if the PDF file is in the request
     if 'pdf' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
+    # Check if the exam name is in the request
+    if 'examName' not in request.form:
+        return jsonify({"error": "No exam name provided"}), 400
+
+    global exam_name
+    exam_name = request.form['examName']  # Extract exam name
     pdf_file = request.files['pdf']
     pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_file.filename)
+
+    # Save the PDF file 
     pdf_file.save(pdf_path)
 
-    # Extract text from the uploaded PDF
+    # Extract text from the uploaded PDF (Assuming extract_text_from_pdf is defined)
     global teacher_answers
     teacher_answers = extract_text_from_pdf(pdf_path)
 
-    return jsonify({"message": "Teacher answers uploaded successfully", "pages": len(teacher_answers)})
+    # You can now handle the exam name however you like (store it, use it for further processing, etc.)
+    print(f"Exam Name: {exam_name}")  # Just printing for now
+
+    # Return success response
+    return jsonify({
+        "message": "Teacher answers uploaded successfully",
+        "examName": exam_name,
+        "pages": len(teacher_answers)
+    })
+
 
 @app.route('/upload/student', methods=['POST'])
 def upload_student_pdf():
@@ -160,7 +220,15 @@ def upload_student_pdf():
     comparisons = {}
     for page, (student_text, teacher_text) in enumerate(zip(extracted_answers, teacher_answers), start=1):
         similarity_score, contextual_score = bert_similarity(student_text, teacher_text)
-        total_score = similarity_score*0.5 + contextual_score*0.5
+        sbert_normalized = similarity_score / 100
+        cross_encoder_normalized = contextual_score / 100
+
+        # 4. Weightages
+        W1 = 0.4  # Weight for SBERT Similarity
+        W2 = 0.6  # Weight for Cross-Encoder
+
+        # 5. Final Score (out of 10)
+        total_score = 10 * ((W1 * sbert_normalized) + (W2 * cross_encoder_normalized))
         comparisons[page] = {
             "student_text": student_text,
             "teacher_text": teacher_text,
@@ -212,6 +280,22 @@ def upload_student_pdf_api():
         "roll_number": roll_number,
         "comparisons": comparisons
     })
+
+@app.route("/save-report", methods=["POST"])
+def save_report():
+    try:
+        data = request.json
+        # Create/access a database named after the exam name
+        db = client[exam_name]
+        collection = db["reports"]  # Use a "reports" collection for the data
+
+        # Insert the report data into MongoDB
+        collection.insert_one(data)
+        return jsonify({"message": f"Report saved successfully in {exam_name} database!"}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "Failed to save the report"}), 500
+    
 
 @app.route("/reset/teacher", methods=["GET"])
 def reset_teacher():
