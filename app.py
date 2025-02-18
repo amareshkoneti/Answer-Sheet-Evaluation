@@ -295,7 +295,7 @@ def save_report():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": "Failed to save the report"}), 500
-    
+
 
 @app.route("/reset/teacher", methods=["GET"])
 def reset_teacher():
