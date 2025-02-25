@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app)
 
 # MongoDB Configuration
-client = MongoClient("mongodb+srv://amaresh:1234@artgallery.vntex.mongodb.net/?retryWrites=true&w=majority&appName=artgallery")
+client = MongoClient("")
 
 # Download necessary NLTK resources
 nltk.download('punkt')
@@ -34,7 +34,7 @@ negation_words = {"not", "never", "no", "none", "cannot", "n't"}  # Add more if 
 
 # SBERT Model for Similarity
 sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
-genai.configure(api_key="AIzaSyAawh0tRqyCOsyz7x9GxVbV_tkUzBsZ59s")
+genai.configure(api_key="")
 
 # Cross-Encoder for Contextual Understanding
 cross_encoder_model = AutoModelForSequenceClassification.from_pretrained("cross-encoder/stsb-roberta-large")
